@@ -136,7 +136,6 @@ client.on('message', message => {
 \`${bot.prefix}leave\` для отключения от голосового канала
 \`${bot.prefix}ping\` задержка до бота
 \`${bot.prefix}uptime\` uptime бота
-\`${bot.prefix}boobs\` nsfw
 \`${bot.prefix}meme\` случайный мем`
 			);
 			break;
@@ -218,24 +217,6 @@ client.on('message', message => {
 			if(server.dispatcher) {
 				server.dispatcher.resume();
 				message.channel.send(`Продолжаем`);
-			}
-			break;
-		case 'boobs':
-			if(!message.channel.nsfw){
-				message.channel.send(`Это должен быть nsfw чат!`);
-			}
-			else {
-				imageSearch.search('erotic boobs 18+') // хз, короче сами напишите
-					.then(images => {
-						message.channel.send('', {page: Math.floor(Math.random() * 100), files: [images[Math.floor(images.length * Math.random())].url.toString()]})
-							.then(message => {
-								message.react('👍')
-									.then(() => {
-									message.react('👎');
-								});
-							})
-							.catch(console.log);
-					});
 			}
 			break;
 		case 'meme':
