@@ -1,14 +1,15 @@
 {
-  "devDependencies": {
-    "nodemon": "^1.18.4"
-  },
   "scripts": {
     "start": "nodemon server.js"
   },
   "dependencies": {
     "discord.js": "^11.4.2",
+    "ffmpeg-static": "^4.3.0",
     "google-images": "^2.1.0",
-    "opusscript": "0.0.6",
-    "ytdl-core": "^0.25.2"
+    "opusscript": "0.0.8",
+    "ytdl-core": "^4.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.4"
   }
 }
