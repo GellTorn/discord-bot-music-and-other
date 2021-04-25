@@ -1,9 +1,7 @@
 ﻿const Discord = require('discord.js')
 const ytdl = require('ytdl-core')
-const GoogleImages = require('google-images')
 const tokens = require('./tokens.js')
 
-const imageSearch = new GoogleImages(tokens.cse, tokens.googleApi)
 const client = new Discord.Client()
 
 const bot = {
@@ -211,21 +209,6 @@ client.on('message', (message) => {
         server.dispatcher.resume()
         message.channel.send(`Продолжаем`)
       }
-      break
-    case 'dunk':
-      imageSearch.search('dank meme').then((images) => {
-        message.channel
-          .send('', {
-            page: Math.floor(Math.random() * 100),
-            files: [images[Math.floor(images.length * Math.random())].url.toString()],
-          })
-          .then((message) => {
-            message.react('👍').then(() => {
-              message.react('👎')
-            })
-          })
-          .catch(console.log)
-      })
       break
     case 'skip':
       if (server.dispatcher) server.dispatcher.end()
