@@ -4,7 +4,7 @@
     "nodemon": "nodemon ./src/server.js"
   },
   "dependencies": {
-    "discord.js": "^11.4.2",
+    "discord.js": "^12.5.3",
     "ffmpeg-static": "^4.3.0",
     "opusscript": "0.0.8",
     "ytdl-core": "^4.5.0"
