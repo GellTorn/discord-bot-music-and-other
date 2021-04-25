@@ -6,7 +6,7 @@ const client = new Discord.Client()
 
 const bot = {
   defaultPrefix: '/',
-  name: 'Mad Bot',
+  defaultMusicBitrate: 9600,
 }
 const servers = {}
 
@@ -18,24 +18,29 @@ const playMusic = (connection, message) => {
 
     const audioStream = ytdl(server.queue[0], {
       filter: `audioonly`,
+      quality: 'highestaudio',
       opusEncoded: true,
     })
 
-    server.dispatcher = connection.playStream(audioStream)
+    server.dispatcher = connection.play(audioStream)
     server.play = true
 
-    server.dispatcher.on('end', () => {
-      const server = servers[message.guild.id]
-      server.queue.shift()
-      server.play = false
-      if (server.queue[0]) {
-        playMusic(connection, message)
-      } else {
-        connection.disconnect()
+    server.dispatcher.on('speaking', (isSpeaking) => {
+      if (!isSpeaking) {
+        const server = servers[message.guild.id]
+        server.queue.shift()
+        server.play = false
+        if (server.queue[0]) {
+          playMusic(connection, message)
+        } else {
+          connection.disconnect()
+        }
       }
     })
   } else {
-    message.channel.send(`Добавленно в очередь \`${server.queue[server.queue.length - 1]}\``)
+    const newAudio = server.queue[server.queue.length - 1]
+    message.channel.send(`Добавленно в очередь \`${newAudio}\``)
+    console.log(`Youtube video added to queue ${newAudio}`)
   }
 }
 
@@ -125,7 +130,7 @@ client.on('message', (message) => {
   if (!servers[guildId]) {
     servers[guildId] = {
       prefix: bot.defaultPrefix,
-      queue: '',
+      queue: [],
     }
   }
 
@@ -136,7 +141,6 @@ client.on('message', (message) => {
   if (!message.content.startsWith(servers[guildId].prefix)) return
 
   console.log(`Command ${message.content} by user ${message.author.username}`)
-  console.log(server)
 
   switch (args[0].toLowerCase()) {
     case 'help':
@@ -150,11 +154,11 @@ client.on('message', (message) => {
 \`${server.prefix}leave\` для отключения от голосового канала
 \`${server.prefix}ping\` задержка до бота
 \`${server.prefix}uptime\` uptime бота
-\`${server.prefix}meme\` случайный мем`
+`
       )
       break
     case 'ping':
-      message.channel.send(`${client.ping}мс`)
+      message.channel.send(`${client.ws.ping}мс`)
       break
     case 'prefix':
       if (!args[1]) {
@@ -165,7 +169,7 @@ client.on('message', (message) => {
       }
       break
     case 'queue':
-      if (!server || !server.queue) {
+      if (server.queue.length === 0) {
         message.channel.send('Очередь пуста')
       } else {
         let newMessage = '`'
@@ -177,17 +181,15 @@ client.on('message', (message) => {
       }
       break
     case 'play':
-      if (message.member.voiceChannel) {
-        const bitrate = 96
-
-        if (message.member.voiceChannel.bitrate !== bitrate) {
-          message.member.voiceChannel
-            .setBitrate(bitrate)
+      if (message.member.voice.channel) {
+        if (message.member.voice.channel.bitrate !== bot.defaultMusicBitrate) {
+          message.member.voice.channel
+            .setBitrate(bot.defaultMusicBitrate)
             .then((vc) => message.channel.send(`Установил битрейт ${vc.bitrate}кб/сек для канала ${vc.name}`))
             .catch(console.log)
         }
 
-        message.member.voiceChannel
+        message.member.voice.channel
           .join()
           .then((connection) => {
             if (!args[1]) {
@@ -203,11 +205,11 @@ client.on('message', (message) => {
       }
       break
     case 'join':
-      message.member.voiceChannel.join()
+      message.member.voice.channel.join()
       break
     case 'leave':
-      if (message.guild.voiceConnection) {
-        message.guild.voiceConnection.disconnect()
+      if (message.guild.voice.channel) {
+        message.guild.voice.channel.leave()
       }
       break
     case 'uptime':
@@ -226,7 +228,10 @@ client.on('message', (message) => {
       }
       break
     case 'skip':
-      if (server.dispatcher) server.dispatcher.end()
+      if (server.dispatcher) {
+        server.dispatcher.pause()
+        server.queue.shift()
+      }
       break
     default:
       message.channel.send(`Неизвестная команда!`)
