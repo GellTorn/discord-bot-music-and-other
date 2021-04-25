@@ -5,7 +5,7 @@ const tokens = require('./tokens.js')
 const client = new Discord.Client()
 
 const bot = {
-  prefix: '/',
+  defaultPrefix: '/',
   name: 'Mad Bot',
 }
 const servers = {}
@@ -14,6 +14,7 @@ const playMusic = (connection, message) => {
   const server = servers[message.guild.id]
   if (!server.play) {
     message.channel.send(`Проигрываю \`${server.queue[0]}\``)
+    console.log(`Youtube video ${server.queue[0]} playing`)
 
     const audioStream = ytdl(server.queue[0], {
       filter: `audioonly`,
@@ -40,6 +41,7 @@ const playMusic = (connection, message) => {
 
 client.on('guildMemberAdd', (member) => {
   const announse = (channel) => {
+    console.log(`New guild member ${member.nickname}`)
     channel.send(
       `Добро пожаловать на сервер, ${member}.
 Чтобы узнать о командах сервера набери \`${bot.prefix}help\``
@@ -61,6 +63,7 @@ client.on('guildMemberAdd', (member) => {
 
 client.on('emojiCreate', (emoji) => {
   const announse = (channel) => {
+    console.log(`Emoji create ${emoji.name}`)
     channel.send(`У нас новый смайлик - ${emoji} !`)
   }
 
@@ -79,6 +82,7 @@ client.on('emojiCreate', (emoji) => {
 
 client.on('emojiDelete', (emoji) => {
   const announse = (channel) => {
+    console.log(`Emoji delete ${emoji.name}`)
     channel.send(`Мы удалили смайлик ${emoji}, RIP!`)
   }
 
@@ -95,14 +99,16 @@ client.on('emojiDelete', (emoji) => {
   }
 })
 
-client.on('emojiUpdate', (emoji) => {
+client.on('emojiUpdate', (oldEmoji, newEmoji) => {
   const announse = (channel) => {
-    channel.send(`Мы обновили смайлик ${emoji}!`)
+    console.log(`Emoji update ${newEmoji.name}`)
+
+    channel.send(`Мы обновили смайлик ${oldEmoji} -> ${newEmoji}!`)
   }
 
-  const channel = emoji.guild.channels.find((channel) => channel.name === 'объявления')
+  const channel = newEmoji.guild.channels.find((channel) => channel.name === 'объявления')
   if (!channel) {
-    emoji.guild
+    newEmoji.guild
       .createChannel('объявления', 'text', [{ deny: ['SEND_MESSAGES'] }])
       .then((channel) => {
         announse(channel)
@@ -114,25 +120,37 @@ client.on('emojiUpdate', (emoji) => {
 })
 
 client.on('message', (message) => {
-  if (message.author.equals(client.user)) return
-  if (!message.content.startsWith(bot.prefix)) return
+  const guildId = message.guild.id
 
-  const args = message.content.substring(bot.prefix.length).split(' ')
-  const server = servers[message.guild.id]
+  if (!servers[guildId]) {
+    servers[guildId] = {
+      prefix: bot.defaultPrefix,
+      queue: '',
+    }
+  }
+
+  const server = servers[guildId]
+  const args = message.content.substring(servers[guildId].prefix.length).split(' ')
+
+  if (message.author.equals(client.user)) return
+  if (!message.content.startsWith(servers[guildId].prefix)) return
+
+  console.log(`Command ${message.content} by user ${message.author.username}`)
+  console.log(server)
 
   switch (args[0].toLowerCase()) {
     case 'help':
       message.channel.send(
-        `Привет я **${bot.name}**!
-\`${bot.prefix}play [youtube url]\` для проигрывания музыки или добавления ее в очередь
-\`${bot.prefix}skip\` пропустить трек
-\`${bot.prefix}queue\` посмотреть очередь
-\`${bot.prefix}prefix [новый префикс]\` ...
-\`${bot.prefix}join\` для присоединения к Вашему голосовому каналу
-\`${bot.prefix}leave\` для отключения от голосового канала
-\`${bot.prefix}ping\` задержка до бота
-\`${bot.prefix}uptime\` uptime бота
-\`${bot.prefix}meme\` случайный мем`
+        `Привет я **${client.user.username}**!
+\`${server.prefix}play [youtube url]\` для проигрывания музыки или добавления ее в очередь
+\`${server.prefix}skip\` пропустить трек
+\`${server.prefix}queue\` посмотреть очередь
+\`${server.prefix}prefix [новый префикс]\` ...
+\`${server.prefix}join\` для присоединения к Вашему голосовому каналу
+\`${server.prefix}leave\` для отключения от голосового канала
+\`${server.prefix}ping\` задержка до бота
+\`${server.prefix}uptime\` uptime бота
+\`${server.prefix}meme\` случайный мем`
       )
       break
     case 'ping':
@@ -140,14 +158,14 @@ client.on('message', (message) => {
       break
     case 'prefix':
       if (!args[1]) {
-        message.channel.send(`Введите новый префикс`)
+        message.channel.send(`Отправьте эту команду с новым префиксом`)
       } else {
-        bot.prefix = args[1]
-        message.channel.send(`Новый префикс бота \`${bot.prefix}\``)
+        server.prefix = args[1]
+        message.channel.send(`Новый префикс бота \`${server.prefix}\``)
       }
       break
     case 'queue':
-      if (!server || !servers[message.guild.id].queue) {
+      if (!server || !server.queue) {
         message.channel.send('Очередь пуста')
       } else {
         let newMessage = '`'
@@ -161,24 +179,21 @@ client.on('message', (message) => {
     case 'play':
       if (message.member.voiceChannel) {
         const bitrate = 96
-        if (message.member.voiceChannel.bitrate > bitrate || message.member.voiceChannel.bitrate < bitrate) {
+
+        if (message.member.voiceChannel.bitrate !== bitrate) {
           message.member.voiceChannel
             .setBitrate(bitrate)
             .then((vc) => message.channel.send(`Установил битрейт ${vc.bitrate}кб/сек для канала ${vc.name}`))
             .catch(console.log)
         }
+
         message.member.voiceChannel
           .join()
           .then((connection) => {
             if (!args[1]) {
               message.channel.send(`Нужна ссылка на youtube видео!`)
             } else {
-              if (!servers[message.guild.id]) {
-                servers[message.guild.id] = {
-                  queue: [],
-                }
-              }
-              servers[message.guild.id].queue.push(args[1])
+              server.queue.push(args[1])
               playMusic(connection, message)
             }
           })
@@ -219,4 +234,9 @@ client.on('message', (message) => {
   }
 })
 
+client.on('ready', () => {
+  console.log(`Connected as ${client.user.username}`)
+})
+
 client.login(tokens.discordApi)
+console.log('Bot started!')
